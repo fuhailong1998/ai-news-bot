@@ -50,6 +50,6 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add storage/seen.db
+          git add -f ai_news_bot/storage/seen.db
           git diff --staged --quiet || git commit -m "chore: update dedup db [skip ci]"
           git push || echo "nothing to push"
