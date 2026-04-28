@@ -40,6 +40,7 @@ jobs:
         env:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
           FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          FEISHU_WEBHOOKS: ${{ secrets.FEISHU_WEBHOOKS }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}

@@ -28,11 +28,34 @@ Settings → Secrets and variables → Actions → New repository secret：
 
 | Name | 必填 | 说明 |
 |---|---|---|
-| `FEISHU_WEBHOOK_URL` | ✅ | 飞书机器人 webhook |
-| `FEISHU_SECRET` | ⬜ | 飞书签名校验密钥 |
+| `FEISHU_WEBHOOK_URL` | ✅（或 `FEISHU_WEBHOOKS`） | 单个飞书机器人 webhook |
+| `FEISHU_SECRET` | ⬜ | 上面单 webhook 的签名密钥 |
+| `FEISHU_WEBHOOKS` | ⬜ | **多个 webhook**（广播到多个群）。优先级高于上面的单 URL。详见下方 [多飞书 webhook 配置](#多飞书-webhook-配置) |
 | `LLM_API_KEY` | ⬜ | 开启摘要时填，如 DeepSeek API key |
 | `LLM_BASE_URL` | ⬜ | 默认 `https://api.openai.com/v1`，可改 `https://api.deepseek.com/v1` |
 | `LLM_MODEL` | ⬜ | 如 `deepseek-chat` / `gpt-4o-mini` |
+
+### 多飞书 webhook 配置
+
+如果想把**同一条新闻**同时广播到多个飞书群（多个部门都要收），配置 `FEISHU_WEBHOOKS` Secret。支持两种格式：
+
+**格式 A — JSON 列表（推荐，每个目标可单独配签名 + 标签）：**
+```json
+[
+  {"url": "https://open.feishu.cn/open-apis/bot/v2/hook/XXX", "secret": "secretA", "name": "team-a"},
+  {"url": "https://open.feishu.cn/open-apis/bot/v2/hook/YYY", "secret": "secretB", "name": "team-b"},
+  {"url": "https://open.feishu.cn/open-apis/bot/v2/hook/ZZZ"}
+]
+```
+
+**格式 B — 管道/逗号分隔（一行搞定，简单场景）：**
+```
+https://open.feishu.cn/.../XXX|secretA, https://open.feishu.cn/.../YYY|secretB, https://open.feishu.cn/.../ZZZ|
+```
+- `|` 分隔 url 和 secret（没签名就 `|` 后留空）
+- `,`（或换行）分隔多个目标
+
+每张卡片 / digest 都会**并发发送到全部目标**。单个目标失败不影响其他。两个变量都没配，日志会报错并跳过推送。
 
 ### 4. 首次 seed（重要！）
 Actions 标签页 → AI News Bot → Run workflow → 选择 `seed`。

@@ -28,11 +28,34 @@ Settings → Secrets and variables → Actions → New repository secret:
 
 | Name | Required | Description |
 |---|---|---|
-| `FEISHU_WEBHOOK_URL` | ✅ | Feishu bot webhook URL |
-| `FEISHU_SECRET` | ⬜ | Feishu signature secret |
+| `FEISHU_WEBHOOK_URL` | ✅ (or `FEISHU_WEBHOOKS`) | Single Feishu bot webhook URL |
+| `FEISHU_SECRET` | ⬜ | Signature secret for the single webhook above |
+| `FEISHU_WEBHOOKS` | ⬜ | **Multiple webhooks** (broadcast same news to many groups). Takes precedence over the single pair. See [Multiple Feishu webhooks](#multiple-feishu-webhooks) below. |
 | `LLM_API_KEY` | ⬜ | API key when summarization is enabled (e.g. DeepSeek) |
 | `LLM_BASE_URL` | ⬜ | Default `https://api.openai.com/v1`; can be `https://api.deepseek.com/v1` |
 | `LLM_MODEL` | ⬜ | e.g. `deepseek-chat` / `gpt-4o-mini` |
+
+### Multiple Feishu webhooks
+
+To broadcast the **same news** to multiple Feishu groups (e.g. several teams want the feed), set the `FEISHU_WEBHOOKS` secret. Two formats are accepted:
+
+**Format A — JSON list (recommended, supports per-target signature secret + label):**
+```json
+[
+  {"url": "https://open.feishu.cn/open-apis/bot/v2/hook/XXX", "secret": "secretA", "name": "team-a"},
+  {"url": "https://open.feishu.cn/open-apis/bot/v2/hook/YYY", "secret": "secretB", "name": "team-b"},
+  {"url": "https://open.feishu.cn/open-apis/bot/v2/hook/ZZZ"}
+]
+```
+
+**Format B — pipe/comma delimited (simpler, one line):**
+```
+https://open.feishu.cn/.../XXX|secretA, https://open.feishu.cn/.../YYY|secretB, https://open.feishu.cn/.../ZZZ|
+```
+- Use `|` between url and secret (secret may be empty after pipe)
+- Use `,` (or newline) between targets
+
+Each card / digest is sent to **every** target. A single target's failure does **not** affect others. If neither `FEISHU_WEBHOOKS` nor `FEISHU_WEBHOOK_URL` is set, the bot logs an error and skips push.
 
 ### 4. Initial seed (important!)
 Actions tab → AI News Bot → Run workflow → choose `seed`.

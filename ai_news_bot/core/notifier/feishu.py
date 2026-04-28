@@ -1,4 +1,4 @@
-"""飞书 Webhook 推送（交互卡片 + 签名 + 限速 + 重试）。"""
+"""飞书 Webhook 推送（交互卡片 + 签名 + 限速 + 重试 + 多群广播）。"""
 from __future__ import annotations
 
 import asyncio
@@ -10,17 +10,17 @@ import time
 import httpx
 from loguru import logger
 
-from ..models import NewsItem, Settings
+from ..models import FeishuWebhook, NewsItem, Settings
 
 
 class FeishuNotifier:
     def __init__(self, settings: Settings):
-        self.url = settings.feishu_webhook_url
-        self.secret = settings.feishu_secret
+        self.targets: list[FeishuWebhook] = list(settings.feishu_webhooks)
         self.cfg = settings.push
 
-    def _sign(self, ts: int) -> str:
-        string_to_sign = f"{ts}\n{self.secret}"
+    @staticmethod
+    def _sign(ts: int, secret: str) -> str:
+        string_to_sign = f"{ts}\n{secret}"
         hmac_code = hmac.new(string_to_sign.encode("utf-8"), digestmod=hashlib.sha256).digest()
         return base64.b64encode(hmac_code).decode("utf-8")
 
@@ -55,36 +55,51 @@ class FeishuNotifier:
             },
         }
 
-    async def _post(self, client: httpx.AsyncClient, payload: dict) -> bool:
-        if self.secret:
+    async def _post_to(self, client: httpx.AsyncClient, target: FeishuWebhook, payload: dict) -> bool:
+        if target.secret:
             ts = int(time.time())
-            payload = {**payload, "timestamp": str(ts), "sign": self._sign(ts)}
+            payload = {**payload, "timestamp": str(ts), "sign": self._sign(ts, target.secret)}
+        label = target.name or target.url[-12:]
         for attempt in range(1, self.cfg.max_retry + 1):
             try:
-                resp = await client.post(self.url, json=payload, timeout=15)
+                resp = await client.post(target.url, json=payload, timeout=15)
                 data = resp.json()
                 if resp.status_code == 200 and data.get("code", data.get("StatusCode", 0)) == 0:
                     return True
-                logger.warning(f"[feishu] resp={data}, attempt {attempt}")
+                logger.warning(f"[feishu:{label}] resp={data}, attempt {attempt}")
             except Exception as e:
-                logger.warning(f"[feishu] error: {e}, attempt {attempt}")
+                logger.warning(f"[feishu:{label}] error: {e}, attempt {attempt}")
             await asyncio.sleep(2 ** (attempt - 1))
         return False
 
-    async def push_many(self, items: list[NewsItem], client: httpx.AsyncClient) -> int:
-        if not self.url:
-            logger.error("FEISHU_WEBHOOK_URL not configured, skip push")
+    async def _broadcast(self, client: httpx.AsyncClient, payload: dict) -> int:
+        """Send a single payload to all targets. Returns number of successful targets."""
+        if not self.targets:
             return 0
+        results = await asyncio.gather(
+            *(self._post_to(client, t, payload) for t in self.targets),
+            return_exceptions=False,
+        )
+        return sum(1 for ok in results if ok)
+
+    async def push_many(self, items: list[NewsItem], client: httpx.AsyncClient) -> int:
+        """Push items, broadcasting each card to all configured webhooks.
+
+        Returns the count of items considered "sent" (i.e. delivered to >=1 target).
+        """
+        if not self.targets:
+            logger.error("No Feishu webhooks configured (set FEISHU_WEBHOOK_URL or FEISHU_WEBHOOKS), skip push")
+            return 0
+        logger.info(f"[feishu] broadcasting to {len(self.targets)} target(s)")
         sent = 0
         for item in items[: self.cfg.per_run_limit]:
-            ok = await self._post(client, self._build_card(item))
-            if ok:
+            ok_targets = await self._broadcast(client, self._build_card(item))
+            if ok_targets > 0:
                 sent += 1
             await asyncio.sleep(self.cfg.interval_seconds)
-        # 若还有剩余，发一条 digest
         rest = items[self.cfg.per_run_limit:]
         if rest:
-            await self._post(client, self._build_digest(rest))
+            await self._broadcast(client, self._build_digest(rest))
         return sent
 
     def _build_digest(self, items: list[NewsItem]) -> dict:
