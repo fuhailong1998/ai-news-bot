@@ -2,17 +2,37 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-定时抓取全球主流 AI 公司更新新闻，去重后通过**飞书 Webhook 机器人**推送到群聊。
+定时抓取全球主流 AI 公司更新新闻，**用 LLM 生成中文摘要 + 标签**，并通过 **飞书 (Lark) 群 + Telegram 群 / 频道** 多通道并发推送。
 完全运行在 **GitHub Actions** 上，无需自己部署服务器。
 
 ## 特性
-- ✅ 27 个数据源（OpenAI / Anthropic / Google / Meta / DeepSeek / Qwen / Kimi …）
-- ✅ RSS / HTML / GitHub Releases / GitHub Tags / HuggingFace org 五种抓取方式
+- ✅ 27+ 个数据源（OpenAI / Anthropic / Google / Meta / DeepSeek / Qwen / Kimi / GLM / MiniMax …）
+- ✅ 5 种抓取方式：RSS / HTML parser / GitHub Releases / GitHub Tags / HuggingFace org
 - ✅ SQLite 去重，commit 回仓库实现持久化
-- ✅ **多渠道推送**：飞书（交互卡片）+ Telegram（HTML 消息），并发广播到多个群
-- ✅ 可选 LLM 摘要（兼容 DeepSeek / Kimi / Qwen / OpenAI）
-- ✅ 限速 + 指数退避重试
+- ✅ **多通道广播**：任意多个飞书群 + 任意多个 Telegram 群 / 频道并发推送
+- ✅ **中文摘要 + 自动标签**（OpenAI 兼容 LLM：DeepSeek / Kimi / Qwen / GLM / GPT）
+- ✅ 限速 + 指数退避重试；单个目标失败不影响其他
 - ✅ 5 分钟自动运行（GitHub Actions cron）
+
+## 推送效果预览
+
+飞书卡片 / Telegram 消息样式：
+
+```
+┌─────────────────────────────────────┐
+│ 🤖 DeepSeek HF Models               │
+├─────────────────────────────────────┤
+│ 🤗 New model: deepseek-ai/DeepSeek-V4│
+│                                     │
+│ 📅 2026-04-28  `模型发布` `开源`      │
+│                                     │
+│ DeepSeek 推出 V4-Pro，支持 200K 上下  │
+│ 文，推理速度比 V3 提升 40%，已开源至  │
+│ HuggingFace。                       │
+│                                     │
+│ [🔗 查看原文]                        │
+└─────────────────────────────────────┘
+```
 
 ## 快速开始（5 步）
 
@@ -30,13 +50,13 @@ Settings → Secrets and variables → Actions → New repository secret：
 |---|---|---|
 | `FEISHU_WEBHOOK_URL` | ✅（或 `FEISHU_WEBHOOKS`） | 单个飞书机器人 webhook |
 | `FEISHU_SECRET` | ⬜ | 上面单 webhook 的签名密钥 |
-| `FEISHU_WEBHOOKS` | ⬜ | **多个 webhook**（广播到多个群）。优先级高于上面的单 URL。详见下方 [多飞书 webhook 配置](#多飞书-webhook-配置) |
-| `LLM_API_KEY` | ⬜ | 开启摘要时填，如 DeepSeek API key |
-| `LLM_BASE_URL` | ⬜ | 默认 `https://api.openai.com/v1`，可改 `https://api.deepseek.com/v1` |
-| `LLM_MODEL` | ⬜ | 如 `deepseek-chat` / `gpt-4o-mini` |
-| `TELEGRAM_BOT_TOKEN` | ⬜ | Telegram bot token（从 @BotFather 获取） |
-| `TELEGRAM_CHAT_IDS` | ⬜ | 接收推送的 chat IDs，逗号分隔（如 `-100123,-100456,@my_channel`），与 `TELEGRAM_BOT_TOKEN` 配套使用 |
-| `TELEGRAM_TARGETS` | ⬜ | (高级) 多个 bot 用，JSON 列表，优先级高于上面两项。详见 [Telegram 配置](#telegram-配置) |
+| `FEISHU_WEBHOOKS` | ⬜ | **多个 webhook**（广播到多个飞书群）。详见 [多飞书 webhook 配置](#多飞书-webhook-配置) |
+| `TELEGRAM_BOT_TOKEN` | ⬜ | Telegram bot token（从 @BotFather 获取）。详见 [Telegram 配置](#telegram-配置) |
+| `TELEGRAM_CHAT_IDS` | ⬜ | Telegram chat IDs，逗号分隔（如 `-100123,-100456,@my_channel`） |
+| `TELEGRAM_TARGETS` | ⬜ | (高级) 多 bot JSON 列表，优先级高于上面两项 |
+| `LLM_API_KEY` | ⬜ | LLM key，**开启中文摘要**。详见 [LLM 中文摘要](#llm-中文摘要) |
+| `LLM_BASE_URL` | ⬜ | OpenAI 兼容 base URL。默认 `https://api.openai.com/v1` |
+| `LLM_MODEL` | ⬜ | 模型名，如 `deepseek-chat` / `gpt-4o-mini` / `glm-4-flash` |
 
 ### 多飞书 webhook 配置
 
@@ -86,12 +106,30 @@ TELEGRAM_CHAT_IDS=-100111,@my_channel,-100222
 TELEGRAM_TARGETS=[{"bot_token":"t1","chat_id":"-100111","name":"team-a"},{"bot_token":"t2","chat_id":"@my_channel"}]
 ```
 
+### LLM 中文摘要
+
+机器人内置 **OpenAI 兼容** LLM 客户端，为每条新闻生成 **≤80 字中文摘要 + 1-3 个标签**。`config/settings.yaml` 默认已开启，**只在配置了 `LLM_API_KEY` 时才生效**（没有 key 则静默跳过，使用原始英文 summary）。
+
+推荐 LLM 服务：
+
+| 服务 | `LLM_BASE_URL` | `LLM_MODEL` | 备注 |
+|---|---|---|---|
+| **DeepSeek** ⭐ | `https://api.deepseek.com/v1` | `deepseek-chat` | 便宜（约 ¥0.001/条），中文好 |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | **免费层**（每天 100 万 tokens） |
+| 阿里 Qwen | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-turbo` | 国内畅通 |
+| Moonshot Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | 中文强 |
+| OpenAI | `https://api.openai.com/v1`（默认） | `gpt-4o-mini` | 最稳定，需海外信用卡 |
+
+标签从 `模型发布 / 融资 / 开源 / 论文 / 产品 / 政策 / 其它` 中选取。
+prompt 和字数限制在 `core/summarizer.py` 和 `config/settings.yaml`。
+要禁用，把 `summarizer.enabled` 改为 `false`。
+
 ### 4. 首次 seed（重要！）
 Actions 标签页 → AI News Bot → Run workflow → 选择 `seed`。
 这会把当前所有新闻入库但**不推送**，避免首次刷屏。
 
 ### 5. 自动运行
-之后每 5 分钟自动跑一次，新增的新闻会推送到飞书群。
+之后每 5 分钟自动跑一次，新增的新闻会**同时**推送到所有飞书群和 Telegram 群 / 频道。
 也可手动 `Run workflow` → `once` 立即触发。
 
 ## 部署方式（任选其一）

@@ -2,17 +2,37 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-Automatically fetch updates from major AI companies and push them to your **Feishu (Lark)** group via webhook bot.
+Automatically fetch updates from major AI companies, **summarize them in Chinese with an LLM**, and push to your **Feishu (Lark) groups + Telegram chats** in parallel via webhook bots.
 Runs entirely on **GitHub Actions** — no server required.
 
 ## Features
 - ✅ **23+ data sources** (OpenAI / Anthropic / Google / Meta / DeepSeek / Qwen / Kimi / GLM / MiniMax …)
 - ✅ Multiple fetcher types: RSS / HTML parser / GitHub Releases / GitHub Tags / HuggingFace org
 - ✅ SQLite-based deduplication, persisted by committing back to the repo
-- ✅ **Multi-channel push**: Feishu (interactive cards) + Telegram (HTML messages), broadcast to many groups in parallel
-- ✅ Optional LLM summarization (OpenAI-compatible: DeepSeek / Kimi / Qwen / GPT)
-- ✅ Rate limiting + exponential-backoff retry
-- ✅ Auto runs every 5 minutes (GitHub Actions cron)
+- ✅ **Multi-channel broadcast**: any number of Feishu groups + any number of Telegram chats / channels in parallel
+- ✅ **Chinese summarization + auto tags** via OpenAI-compatible LLM (DeepSeek / Kimi / Qwen / GLM / GPT)
+- ✅ Rate limiting + exponential-backoff retry; per-target failures don't abort others
+- ✅ Auto-runs every 5 minutes (GitHub Actions cron)
+
+## Output Preview
+
+A Feishu card (or equivalent Telegram message) looks like:
+
+```
+┌─────────────────────────────────────┐
+│ 🤖 DeepSeek HF Models               │
+├─────────────────────────────────────┤
+│ 🤗 New model: deepseek-ai/DeepSeek-V4│
+│                                     │
+│ 📅 2026-04-28  `模型发布` `开源`      │
+│                                     │
+│ DeepSeek 推出 V4-Pro，支持 200K 上下  │
+│ 文，推理速度比 V3 提升 40%，已开源至  │
+│ HuggingFace。                       │
+│                                     │
+│ [🔗 查看原文]                        │
+└─────────────────────────────────────┘
+```
 
 ## Quick Start (5 steps)
 
@@ -30,13 +50,13 @@ Settings → Secrets and variables → Actions → New repository secret:
 |---|---|---|
 | `FEISHU_WEBHOOK_URL` | ✅ (or `FEISHU_WEBHOOKS`) | Single Feishu bot webhook URL |
 | `FEISHU_SECRET` | ⬜ | Signature secret for the single webhook above |
-| `FEISHU_WEBHOOKS` | ⬜ | **Multiple webhooks** (broadcast same news to many groups). Takes precedence over the single pair. See [Multiple Feishu webhooks](#multiple-feishu-webhooks) below. |
-| `LLM_API_KEY` | ⬜ | API key when summarization is enabled (e.g. DeepSeek) |
-| `LLM_BASE_URL` | ⬜ | Default `https://api.openai.com/v1`; can be `https://api.deepseek.com/v1` |
-| `LLM_MODEL` | ⬜ | e.g. `deepseek-chat` / `gpt-4o-mini` |
-| `TELEGRAM_BOT_TOKEN` | ⬜ | Telegram bot token (from @BotFather) |
-| `TELEGRAM_CHAT_IDS` | ⬜ | Telegram chat IDs to broadcast to (comma-separated, e.g. `-100123,-100456,@my_channel`). Used together with `TELEGRAM_BOT_TOKEN`. |
-| `TELEGRAM_TARGETS` | ⬜ | (advanced) Multiple bots, JSON list. Takes precedence over the simple pair above. See [Telegram setup](#telegram-setup). |
+| `FEISHU_WEBHOOKS` | ⬜ | **Multiple webhooks** (broadcast to many Feishu groups). See [Multiple Feishu webhooks](#multiple-feishu-webhooks) |
+| `TELEGRAM_BOT_TOKEN` | ⬜ | Telegram bot token (from @BotFather). See [Telegram setup](#telegram-setup) |
+| `TELEGRAM_CHAT_IDS` | ⬜ | Comma-separated Telegram chat IDs (e.g. `-100123,-100456,@my_channel`) |
+| `TELEGRAM_TARGETS` | ⬜ | (advanced) Multi-bot JSON list, overrides the pair above |
+| `LLM_API_KEY` | ⬜ | LLM key for **Chinese summarization**. See [LLM summarizer](#llm-summarizer) |
+| `LLM_BASE_URL` | ⬜ | OpenAI-compatible base URL. Default `https://api.openai.com/v1` |
+| `LLM_MODEL` | ⬜ | Model name. e.g. `deepseek-chat` / `gpt-4o-mini` / `glm-4-flash` |
 
 ### Multiple Feishu webhooks
 
@@ -86,12 +106,30 @@ Advanced (multiple bots; JSON, takes precedence):
 TELEGRAM_TARGETS=[{"bot_token":"t1","chat_id":"-100111","name":"team-a"},{"bot_token":"t2","chat_id":"@my_channel"}]
 ```
 
+### LLM summarizer
+
+The bot ships with an **OpenAI-compatible** LLM client that produces a **≤80-char Chinese summary + 1-3 tags** for every news item. It's enabled by default in `config/settings.yaml` but only **activates when `LLM_API_KEY` is set** (no key → silently skipped, raw summary is used).
+
+Recommended providers:
+
+| Provider | `LLM_BASE_URL` | `LLM_MODEL` | Note |
+|---|---|---|---|
+| **DeepSeek** ⭐ | `https://api.deepseek.com/v1` | `deepseek-chat` | Cheap (~¥0.001/item), great Chinese |
+| Zhipu GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | **Free tier** (1M tokens/day) |
+| Alibaba Qwen | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-turbo` | Domestic friendly |
+| Moonshot Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | Strong Chinese |
+| OpenAI | `https://api.openai.com/v1` (default) | `gpt-4o-mini` | Most reliable, needs intl card |
+
+Tags are picked from: `模型发布 / 融资 / 开源 / 论文 / 产品 / 政策 / 其它`.
+The prompt and char limits are in `core/summarizer.py` and `config/settings.yaml`.
+To disable, set `summarizer.enabled: false` in `config/settings.yaml`.
+
 ### 4. Initial seed (important!)
 Actions tab → AI News Bot → Run workflow → choose `seed`.
 This loads all current items into the dedup DB **without pushing**, to avoid flooding the group.
 
 ### 5. Auto-run
-The bot then runs every 5 minutes; only newly-published items will be pushed.
+The bot then runs every 5 minutes; new items are pushed **simultaneously** to all configured Feishu groups and Telegram chats / channels.
 You can also manually `Run workflow` → `once` for an immediate run.
 
 ## Deployment Options
