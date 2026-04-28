@@ -193,6 +193,40 @@ Common tweaks:
 - Add image: `{"tag": "img", "img_key": "..."}` (need to upload via Feishu image API first)
 - Mention a user: write `<at id=user_open_id></at>` inside markdown
 
+For Telegram messages, edit `_build_text` in `core/notifier/telegram.py` (Telegram supports a small HTML subset: `<b>`, `<i>`, `<a>`, `<code>`, `<pre>`).
+
+---
+
+## 🤖 Customizing the LLM Summarizer
+
+The summarizer lives in `core/summarizer.py`. It calls any **OpenAI-compatible** `/chat/completions` endpoint and asks for a JSON object with `summary` (≤80 chars Chinese) and `tags` (1-3 items from a fixed list).
+
+**Tweak the prompt** — edit `PROMPT_TEMPLATE` in `core/summarizer.py`. Useful customizations:
+- Add a custom tag set (e.g. include `Agent` / `多模态` / `Benchmark`)
+- Switch output language (the bot is Chinese-first by default)
+- Add few-shot examples for better consistency
+
+**Tweak length / model** — `config/settings.yaml`:
+```yaml
+summarizer:
+  enabled: true
+  model: deepseek-chat        # overridden by LLM_MODEL env if set
+  max_input_chars: 2000       # how much of item.content/summary to feed
+  max_summary_chars: 80       # cap output summary
+```
+
+**Switch LLM provider** — set Secrets:
+
+| Provider | `LLM_BASE_URL` | `LLM_MODEL` | Note |
+|---|---|---|---|
+| DeepSeek ⭐ | `https://api.deepseek.com/v1` | `deepseek-chat` | Cheap, great Chinese |
+| Zhipu GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | **Free tier** |
+| Alibaba Qwen | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-turbo` | Domestic |
+| Moonshot Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | Strong Chinese |
+| OpenAI | (default) | `gpt-4o-mini` | Reliable |
+
+**Fail-safe** — if the LLM call fails or `LLM_API_KEY` is missing, `ai_summary` stays empty and the card falls back to the raw `summary` field. Failures are logged at `WARNING` level but don't break the run.
+
 ---
 
 ## ✅ Pull Request Checklist

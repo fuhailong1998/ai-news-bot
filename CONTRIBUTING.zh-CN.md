@@ -193,6 +193,40 @@ type: Literal["rss", "html", "github_releases", "github_tags", "huggingface_org"
 - 加图片：`{"tag": "img", "img_key": "..."}`（需先调飞书图床 API 上传）
 - 加 @人：在 markdown 里写 `<at id=user_open_id></at>`
 
+修改 Telegram 消息样式：编辑 `core/notifier/telegram.py` 的 `_build_text`（Telegram 支持 `<b>`, `<i>`, `<a>`, `<code>`, `<pre>` 等子集）。
+
+---
+
+## 🤖 修改 LLM 摘要
+
+摘要器在 `core/summarizer.py`，调用任意 **OpenAI 兼容** `/chat/completions` 端点，要求模型输出 JSON：`summary`（≤80 字中文）+ `tags`（从固定标签集选 1-3 个）。
+
+**改 prompt** — 编辑 `core/summarizer.py` 的 `PROMPT_TEMPLATE`：
+- 加自定义标签集（如加 `Agent` / `多模态` / `Benchmark`）
+- 切换输出语言（默认中文优先）
+- 加 few-shot 示例提高一致性
+
+**改长度 / 模型** — `config/settings.yaml`：
+```yaml
+summarizer:
+  enabled: true
+  model: deepseek-chat        # 被 LLM_MODEL env 覆盖
+  max_input_chars: 2000       # 喂给 LLM 的 item.content/summary 长度
+  max_summary_chars: 80       # 输出摘要字数上限
+```
+
+**切换 LLM 服务** — 配置 Secrets：
+
+| 服务 | `LLM_BASE_URL` | `LLM_MODEL` | 备注 |
+|---|---|---|---|
+| DeepSeek ⭐ | `https://api.deepseek.com/v1` | `deepseek-chat` | 便宜，中文好 |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | **免费层** |
+| 阿里 Qwen | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-turbo` | 国内畅通 |
+| Moonshot Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | 中文强 |
+| OpenAI | (默认) | `gpt-4o-mini` | 最稳 |
+
+**降级保护**：LLM 调用失败 / 没配 `LLM_API_KEY` 时，`ai_summary` 留空，卡片自动 fallback 到原始 `summary` 字段。失败仅 WARNING 日志，不会中断本轮运行。
+
 ---
 
 ## ✅ Pull Request 检查清单
