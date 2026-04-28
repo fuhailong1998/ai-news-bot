@@ -81,6 +81,12 @@ class FeishuWebhook(BaseModel):
     name: str = ""  # optional label, only for logging
 
 
+class TelegramTarget(BaseModel):
+    bot_token: str
+    chat_id: str
+    name: str = ""  # optional label
+
+
 class Settings(BaseModel):
     storage: StorageCfg = Field(default_factory=StorageCfg)
     push: PushCfg = Field(default_factory=PushCfg)
@@ -91,6 +97,7 @@ class Settings(BaseModel):
     feishu_webhook_url: str = ""
     feishu_secret: str = ""
     feishu_webhooks: list[FeishuWebhook] = Field(default_factory=list)
+    telegram_targets: list[TelegramTarget] = Field(default_factory=list)
     llm_api_key: str = ""
     llm_base_url: str = "https://api.openai.com/v1"
     llm_model: str = "deepseek-chat"
@@ -132,6 +139,34 @@ def _parse_feishu_webhooks_env() -> list[FeishuWebhook]:
     return out
 
 
+def _parse_telegram_targets_env() -> list[TelegramTarget]:
+    """Parse Telegram targets from env vars.
+
+    Two configurations supported:
+      Mode A (simple, one bot N chats):
+        TELEGRAM_BOT_TOKEN=123:abc
+        TELEGRAM_CHAT_IDS=-100123,-100456,@my_channel
+
+      Mode B (multi-bot or per-chat names; JSON, takes precedence):
+        TELEGRAM_TARGETS=[{"bot_token":"...","chat_id":"-100123","name":"team-a"}, ...]
+    Empty / unset returns [].
+    """
+    raw = (os.getenv("TELEGRAM_TARGETS") or "").strip()
+    if raw:
+        try:
+            arr = json.loads(raw) if raw.startswith("[") else None
+            if arr:
+                return [TelegramTarget(**item) for item in arr if item.get("bot_token") and item.get("chat_id")]
+        except Exception as e:
+            logger.error(f"TELEGRAM_TARGETS JSON parse error: {e}")
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+    chats_raw = (os.getenv("TELEGRAM_CHAT_IDS") or os.getenv("TELEGRAM_CHAT_ID") or "").strip()
+    if not token or not chats_raw:
+        return []
+    chat_ids = [c.strip() for c in chats_raw.replace("\n", ",").split(",") if c.strip()]
+    return [TelegramTarget(bot_token=token, chat_id=cid) for cid in chat_ids]
+
+
 def load_settings(path: Path | None = None) -> Settings:
     path = path or (CONFIG_DIR / "settings.yaml")
     data = yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else {}
@@ -149,6 +184,9 @@ def load_settings(path: Path | None = None) -> Settings:
         s.feishu_webhooks = multi
     elif s.feishu_webhook_url:
         s.feishu_webhooks = [FeishuWebhook(url=s.feishu_webhook_url, secret=s.feishu_secret)]
+
+    # Telegram targets
+    s.telegram_targets = _parse_telegram_targets_env()
     return s
 
 

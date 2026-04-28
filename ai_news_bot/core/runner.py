@@ -11,7 +11,12 @@ from .dedup import Dedup
 from .fetcher.factory import build_fetcher
 from .models import NewsItem, Settings, SourceConfig, load_settings, load_sources
 from .notifier.feishu import FeishuNotifier
+from .notifier.telegram import TelegramNotifier
 from .summarizer import Summarizer
+
+
+async def _noop() -> int:
+    return 0
 
 
 async def _fetch_one(source: SourceConfig, client: httpx.AsyncClient) -> list[NewsItem]:
@@ -30,7 +35,8 @@ async def run(seed_only: bool = False) -> None:
 
     dedup = Dedup(settings.storage.db_path)
     summarizer = Summarizer(settings)
-    notifier = FeishuNotifier(settings)
+    feishu = FeishuNotifier(settings)
+    telegram = TelegramNotifier(settings)
 
     sem = asyncio.Semaphore(settings.fetch.concurrency)
     headers = {"User-Agent": settings.fetch.user_agent}
@@ -68,11 +74,16 @@ async def run(seed_only: bool = False) -> None:
         if summarizer.enabled and new_items:
             await asyncio.gather(*(summarizer.summarize(it, client) for it in new_items))
 
-        # 推送
+        # 推送（飞书 + Telegram 并发）
         sent = 0
         if new_items:
-            sent = await notifier.push_many(new_items, client)
-        logger.info(f"Pushed {sent}/{len(new_items)} items")
+            results = await asyncio.gather(
+                feishu.push_many(new_items, client),
+                telegram.push_many(new_items, client) if telegram.enabled else _noop(),
+            )
+            sent = max(results)
+        logger.info(f"Pushed {sent}/{len(new_items)} items "
+                    f"(feishu={len(feishu.targets)}, tg={len(telegram.targets)})")
 
         # 入库
         for it in new_items:

@@ -9,7 +9,7 @@ Runs entirely on **GitHub Actions** — no server required.
 - ✅ **23+ data sources** (OpenAI / Anthropic / Google / Meta / DeepSeek / Qwen / Kimi / GLM / MiniMax …)
 - ✅ Multiple fetcher types: RSS / HTML parser / GitHub Releases / GitHub Tags / HuggingFace org
 - ✅ SQLite-based deduplication, persisted by committing back to the repo
-- ✅ Feishu interactive cards (title + summary + tags + "Read more" button)
+- ✅ **Multi-channel push**: Feishu (interactive cards) + Telegram (HTML messages), broadcast to many groups in parallel
 - ✅ Optional LLM summarization (OpenAI-compatible: DeepSeek / Kimi / Qwen / GPT)
 - ✅ Rate limiting + exponential-backoff retry
 - ✅ Auto runs every 30 minutes (GitHub Actions cron)
@@ -34,6 +34,9 @@ Settings → Secrets and variables → Actions → New repository secret:
 | `LLM_API_KEY` | ⬜ | API key when summarization is enabled (e.g. DeepSeek) |
 | `LLM_BASE_URL` | ⬜ | Default `https://api.openai.com/v1`; can be `https://api.deepseek.com/v1` |
 | `LLM_MODEL` | ⬜ | e.g. `deepseek-chat` / `gpt-4o-mini` |
+| `TELEGRAM_BOT_TOKEN` | ⬜ | Telegram bot token (from @BotFather) |
+| `TELEGRAM_CHAT_IDS` | ⬜ | Telegram chat IDs to broadcast to (comma-separated, e.g. `-100123,-100456,@my_channel`). Used together with `TELEGRAM_BOT_TOKEN`. |
+| `TELEGRAM_TARGETS` | ⬜ | (advanced) Multiple bots, JSON list. Takes precedence over the simple pair above. See [Telegram setup](#telegram-setup). |
 
 ### Multiple Feishu webhooks
 
@@ -56,6 +59,32 @@ https://open.feishu.cn/.../XXX|secretA, https://open.feishu.cn/.../YYY|secretB, 
 - Use `,` (or newline) between targets
 
 Each card / digest is sent to **every** target. A single target's failure does **not** affect others. If neither `FEISHU_WEBHOOKS` nor `FEISHU_WEBHOOK_URL` is set, the bot logs an error and skips push.
+
+### Telegram setup
+
+The bot can additionally push to **Telegram** chats / channels in parallel with Feishu (independent — you can use either or both).
+
+**Step 1 — create a bot:**
+1. In Telegram, message **@BotFather** → `/newbot` → follow prompts → copy the bot **token** (looks like `1234567890:AAH...`)
+2. Add the bot to your group / channel; in a channel, give it **post messages** permission
+
+**Step 2 — get chat IDs:**
+- For a group: add **@userinfobot** to the group, it will reply with the group's chat ID (negative number like `-100123456789`)
+- For a public channel: use `@channel_username` (with the `@`)
+- For a personal chat: message the bot, then `curl https://api.telegram.org/bot<TOKEN>/getUpdates` and look for `"chat":{"id":...}`
+
+**Step 3 — configure secrets:**
+
+Simple (one bot, multiple chats):
+```
+TELEGRAM_BOT_TOKEN=1234567890:AAH...
+TELEGRAM_CHAT_IDS=-100111,@my_channel,-100222
+```
+
+Advanced (multiple bots; JSON, takes precedence):
+```json
+TELEGRAM_TARGETS=[{"bot_token":"t1","chat_id":"-100111","name":"team-a"},{"bot_token":"t2","chat_id":"@my_channel"}]
+```
 
 ### 4. Initial seed (important!)
 Actions tab → AI News Bot → Run workflow → choose `seed`.

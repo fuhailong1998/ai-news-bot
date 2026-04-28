@@ -7,9 +7,9 @@
 
 ## 特性
 - ✅ 27 个数据源（OpenAI / Anthropic / Google / Meta / DeepSeek / Qwen / Kimi …）
-- ✅ RSS / HTML / GitHub Releases 三种抓取方式
+- ✅ RSS / HTML / GitHub Releases / GitHub Tags / HuggingFace org 五种抓取方式
 - ✅ SQLite 去重，commit 回仓库实现持久化
-- ✅ 飞书交互式卡片（标题 + 摘要 + 标签 + 原文按钮）
+- ✅ **多渠道推送**：飞书（交互卡片）+ Telegram（HTML 消息），并发广播到多个群
 - ✅ 可选 LLM 摘要（兼容 DeepSeek / Kimi / Qwen / OpenAI）
 - ✅ 限速 + 指数退避重试
 - ✅ 30 分钟自动运行（GitHub Actions cron）
@@ -34,6 +34,9 @@ Settings → Secrets and variables → Actions → New repository secret：
 | `LLM_API_KEY` | ⬜ | 开启摘要时填，如 DeepSeek API key |
 | `LLM_BASE_URL` | ⬜ | 默认 `https://api.openai.com/v1`，可改 `https://api.deepseek.com/v1` |
 | `LLM_MODEL` | ⬜ | 如 `deepseek-chat` / `gpt-4o-mini` |
+| `TELEGRAM_BOT_TOKEN` | ⬜ | Telegram bot token（从 @BotFather 获取） |
+| `TELEGRAM_CHAT_IDS` | ⬜ | 接收推送的 chat IDs，逗号分隔（如 `-100123,-100456,@my_channel`），与 `TELEGRAM_BOT_TOKEN` 配套使用 |
+| `TELEGRAM_TARGETS` | ⬜ | (高级) 多个 bot 用，JSON 列表，优先级高于上面两项。详见 [Telegram 配置](#telegram-配置) |
 
 ### 多飞书 webhook 配置
 
@@ -56,6 +59,32 @@ https://open.feishu.cn/.../XXX|secretA, https://open.feishu.cn/.../YYY|secretB, 
 - `,`（或换行）分隔多个目标
 
 每张卡片 / digest 都会**并发发送到全部目标**。单个目标失败不影响其他。两个变量都没配，日志会报错并跳过推送。
+
+### Telegram 配置
+
+机器人可以额外推送到 **Telegram** 群 / 频道，与飞书并行（独立，开任意一个都行）。
+
+**步骤 1 — 创建 bot：**
+1. 在 Telegram 里给 **@BotFather** 发 `/newbot`，按提示走，**复制 bot token**（类似 `1234567890:AAH...`）
+2. 把 bot 拉进你的群 / 频道；如果是频道，给 bot **post messages** 权限
+
+**步骤 2 — 拿 chat ID：**
+- 群组：把 **@userinfobot** 加进群，它会回复群的 chat ID（负数，如 `-100123456789`）
+- 公开频道：直接用 `@channel_username`（带 `@`）
+- 私聊：先给 bot 发条消息，然后 `curl https://api.telegram.org/bot<TOKEN>/getUpdates` 看 `"chat":{"id":...}`
+
+**步骤 3 — 配置 Secrets：**
+
+简单形式（单 bot，多个 chat）：
+```
+TELEGRAM_BOT_TOKEN=1234567890:AAH...
+TELEGRAM_CHAT_IDS=-100111,@my_channel,-100222
+```
+
+高级形式（多 bot，JSON，优先级更高）：
+```json
+TELEGRAM_TARGETS=[{"bot_token":"t1","chat_id":"-100111","name":"team-a"},{"bot_token":"t2","chat_id":"@my_channel"}]
+```
 
 ### 4. 首次 seed（重要！）
 Actions 标签页 → AI News Bot → Run workflow → 选择 `seed`。
