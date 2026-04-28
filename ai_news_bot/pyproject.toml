@@ -3,6 +3,8 @@ name = "ai-news-bot"
 version = "0.1.0"
 description = "Fetch AI company news and push to Feishu"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "fuhailong1998"}]
 dependencies = [
     "httpx>=0.27",
     "feedparser>=6.0",
