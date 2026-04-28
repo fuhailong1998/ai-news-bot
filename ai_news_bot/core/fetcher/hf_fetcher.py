@@ -34,7 +34,8 @@ class HuggingFaceOrgFetcher(BaseFetcher):
                 title=f"🤗 New model: {model_id}",
                 url=f"https://huggingface.co/{model_id}",
                 published_at=created,
-                summary=f"Downloads: {downloads:,} | Likes: {likes}",
+                summary=f"New model release on Hugging Face by {org}",
+                content=f"Downloads: {downloads:,} | Likes: {likes}",
             ))
         logger.debug(f"[{self.source.name}] HF fetched {len(items)} models for org={org}")
         return items

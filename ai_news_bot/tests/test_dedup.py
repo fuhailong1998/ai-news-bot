@@ -26,11 +26,13 @@ def test_new_then_seen(dedup):
     assert dedup.is_new(it) is False
 
 
-def test_content_change_is_new(dedup):
+def test_same_url_not_new_even_if_content_changes(dedup):
+    """Same URL should never re-push, even if summary mutates (e.g. HF download counts,
+    OpenAI Status incident progressing). Avoids spamming users with duplicates."""
     it1 = _item(summary="v1")
     dedup.mark_seen(it1, pushed=True)
     it2 = _item(summary="v2")
-    assert dedup.is_new(it2) is True
+    assert dedup.is_new(it2) is False
 
 
 def test_cleanup(dedup):

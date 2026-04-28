@@ -31,12 +31,9 @@ class Dedup:
 
     def is_new(self, item: NewsItem) -> bool:
         row = self.conn.execute(
-            "SELECT content_hash FROM seen WHERE uid = ?", (item.uid,)
+            "SELECT 1 FROM seen WHERE uid = ?", (item.uid,)
         ).fetchone()
-        if row is None:
-            return True
-        # 同 URL，检测内容更新
-        return row[0] != item.content_hash
+        return row is None
 
     def mark_seen(self, item: NewsItem, pushed: bool = False) -> None:
         now = datetime.utcnow().isoformat()
