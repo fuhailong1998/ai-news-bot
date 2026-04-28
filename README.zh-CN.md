@@ -12,7 +12,7 @@
 - ✅ **多渠道推送**：飞书（交互卡片）+ Telegram（HTML 消息），并发广播到多个群
 - ✅ 可选 LLM 摘要（兼容 DeepSeek / Kimi / Qwen / OpenAI）
 - ✅ 限速 + 指数退避重试
-- ✅ 30 分钟自动运行（GitHub Actions cron）
+- ✅ 5 分钟自动运行（GitHub Actions cron）
 
 ## 快速开始（5 步）
 
@@ -91,7 +91,7 @@ Actions 标签页 → AI News Bot → Run workflow → 选择 `seed`。
 这会把当前所有新闻入库但**不推送**，避免首次刷屏。
 
 ### 5. 自动运行
-之后每 30 分钟自动跑一次，新增的新闻会推送到飞书群。
+之后每 5 分钟自动跑一次，新增的新闻会推送到飞书群。
 也可手动 `Run workflow` → `once` 立即触发。
 
 ## 部署方式（任选其一）

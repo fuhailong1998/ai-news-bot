@@ -12,7 +12,7 @@ Runs entirely on **GitHub Actions** — no server required.
 - ✅ **Multi-channel push**: Feishu (interactive cards) + Telegram (HTML messages), broadcast to many groups in parallel
 - ✅ Optional LLM summarization (OpenAI-compatible: DeepSeek / Kimi / Qwen / GPT)
 - ✅ Rate limiting + exponential-backoff retry
-- ✅ Auto runs every 30 minutes (GitHub Actions cron)
+- ✅ Auto runs every 5 minutes (GitHub Actions cron)
 
 ## Quick Start (5 steps)
 
@@ -91,7 +91,7 @@ Actions tab → AI News Bot → Run workflow → choose `seed`.
 This loads all current items into the dedup DB **without pushing**, to avoid flooding the group.
 
 ### 5. Auto-run
-The bot then runs every 30 minutes; only newly-published items will be pushed.
+The bot then runs every 5 minutes; only newly-published items will be pushed.
 You can also manually `Run workflow` → `once` for an immediate run.
 
 ## Deployment Options
