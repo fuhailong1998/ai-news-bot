@@ -1,0 +1,14 @@
+[Unit]
+Description=AI News Bot - fetch & push to Feishu
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/ai_news_bot
+EnvironmentFile=/etc/ai_news_bot.env
+ExecStart=/opt/ai_news_bot/.venv/bin/python main.py --once
+StandardOutput=append:/var/log/ai_news_bot.log
+StandardError=append:/var/log/ai_news_bot.log
+MemoryMax=512M
+CPUQuota=50%

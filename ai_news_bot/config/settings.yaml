@@ -1,0 +1,19 @@
+storage:
+  db_path: storage/seen.db
+  retention_days: 30
+
+push:
+  per_run_limit: 10        # 每轮最多推送几条，避免刷屏
+  interval_seconds: 0.8    # 每条之间间隔（飞书限速）
+  max_retry: 3
+
+summarizer:
+  enabled: false           # 设为 true 开启 LLM 摘要
+  model: deepseek-chat
+  max_input_chars: 2000
+  max_summary_chars: 80
+
+fetch:
+  timeout_seconds: 20
+  user_agent: "Mozilla/5.0 (compatible; AINewsBot/0.1)"
+  concurrency: 8

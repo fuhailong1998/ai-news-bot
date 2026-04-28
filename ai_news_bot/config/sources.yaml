@@ -1,0 +1,47 @@
+# AI 新闻源配置
+# type: rss | html | github_releases
+# enabled: true/false
+# parser: HTML 源对应的解析函数名（在 core/fetcher/html_fetcher.py 中实现）
+# priority: high | medium | low (用于推送策略，目前 high/medium 实时推送)
+
+sources:
+  # ===== 海外 - 模型厂商 =====
+  - {name: "OpenAI",                 type: rss,  url: "https://openai.com/news/rss.xml", priority: high}
+  - {name: "OpenAI Status",          type: rss,  url: "https://status.openai.com/history.atom", priority: medium}
+  - {name: "Google AI",              type: rss,  url: "https://blog.google/technology/ai/rss/", priority: high}
+  - {name: "Google DeepMind",        type: rss,  url: "https://deepmind.google/blog/rss.xml", priority: high}
+  - {name: "Gemini API Changelog",   type: html, url: "https://ai.google.dev/gemini-api/docs/changelog", parser: gemini_changelog, enabled: false, priority: medium}
+  - {name: "Anthropic",              type: html, url: "https://www.anthropic.com/news", parser: anthropic, priority: high}
+  - {name: "Anthropic Release Notes",type: html, url: "https://docs.anthropic.com/en/release-notes/overview", parser: anthropic_release, enabled: false, priority: medium}
+  - {name: "Microsoft AI",           type: rss,  url: "https://blogs.microsoft.com/ai/feed/", priority: high}
+  - {name: "Azure OpenAI What's New",type: html, url: "https://learn.microsoft.com/en-us/azure/ai-services/openai/whats-new", parser: azure_openai, enabled: false, priority: medium}
+  - {name: "AWS What's New",         type: rss,  url: "https://aws.amazon.com/about-aws/whats-new/recent/feed/", priority: medium}
+  - {name: "Meta AI",                type: rss,  url: "https://research.facebook.com/feed/", priority: high}
+  - {name: "NVIDIA Deep Learning",   type: rss,  url: "https://blogs.nvidia.com/blog/category/deep-learning/feed/", priority: high}
+  - {name: "Mistral AI",             type: html, url: "https://mistral.ai/news/", parser: mistral, priority: high}
+  - {name: "Hugging Face",           type: rss,  url: "https://huggingface.co/blog/feed.xml", priority: high}
+  - {name: "GitHub Changelog",       type: rss,  url: "https://github.blog/changelog/feed/", priority: medium}
+  - {name: "Cursor Changelog",       type: html, url: "https://www.cursor.com/changelog", parser: cursor, priority: medium}
+  - {name: "Vercel AI SDK",          type: rss,  url: "https://github.com/vercel/ai/releases.atom", priority: medium}
+
+  # ===== 国内 =====
+  # ⚠️ 大部分国内厂商官网是 SPA（前端渲染），无 headless browser 抓不到
+  #    替代方案：监控其 GitHub 组织的 Releases（更稳定且权威）
+  - {name: "Qwen (阿里)",             type: rss,  url: "https://qwenlm.github.io/blog/index.xml", priority: high}
+  - {name: "Qwen HF Models",         type: huggingface_org, repo: "Qwen", priority: high}
+  - {name: "DeepSeek (sitemap)",     type: html, url: "https://api-docs.deepseek.com/sitemap.xml", parser: deepseek, priority: high}
+  - {name: "DeepSeek HF Models",     type: huggingface_org, repo: "deepseek-ai", priority: high}
+  - {name: "智谱 HF Models (zai-org)",type: huggingface_org, repo: "zai-org", priority: high}
+  - {name: "Kimi HF Models",         type: huggingface_org, repo: "moonshotai", priority: high}
+  - {name: "MiniMax HF Models",      type: huggingface_org, repo: "MiniMaxAI", priority: high}
+  - {name: "腾讯 HF Models",          type: huggingface_org, repo: "tencent", priority: high}
+  - {name: "字节 Seed HF Models",     type: huggingface_org, repo: "ByteDance-Seed", priority: medium}
+
+  # 以下 SPA 站点保留占位但默认禁用，需要 playwright 才能抓
+  - {name: "百度 Research",           type: html, url: "https://research.baidu.com/Blog", parser: baidu, enabled: false, priority: low}
+  - {name: "腾讯混元",                type: html, url: "https://hunyuan.tencent.com/", parser: tencent_hunyuan, enabled: false, priority: low}
+  - {name: "字节豆包",                type: html, url: "https://team.doubao.com/zh/blog", parser: doubao, enabled: false, priority: low}
+  - {name: "华为云资讯",              type: html, url: "https://www.huaweicloud.com/news/", parser: huawei, enabled: false, priority: low}
+  - {name: "月之暗面 Kimi",           type: html, url: "https://www.moonshot.cn/", parser: moonshot, enabled: false, priority: low}
+  - {name: "智谱 AI",                 type: html, url: "https://zhipuai.cn/news", parser: zhipu, enabled: false, priority: low}
+  - {name: "MiniMax",                type: html, url: "https://www.minimaxi.com/news", parser: minimax, enabled: false, priority: low}

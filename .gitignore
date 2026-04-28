@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+logs/
+.pytest_cache/
+.coverage
+*.log
+ai_news_bot/storage/seen.db
