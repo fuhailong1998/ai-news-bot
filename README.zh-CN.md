@@ -195,10 +195,10 @@ sudo systemctl disable --now ai-news-bot.timer    # 停止
 
 > ⚠️ HTML 源默认 `enabled: false`，需要你写完 parser 再开启。
 
-> ⚠️ **添加新数据源后**，先在 Actions 里手动跑一次 **`seed`** 模式
-> （Actions → AI News Bot → Run workflow → mode 选 `seed`）。
-> 这一步只把该源的历史条目静默入库，不会推送；否则下一次 `once` 跑会把
-> 整个 RSS 历史（例如所有历史 release）当作"新条目"一次性轰炸到群里。
+> 💡 **首次拉取自动保护**：新增的数据源第一次被轮询时，**只推送近
+> `storage.first_run_window_days` 天（默认 7 天）内发布的条目**，更早的历史
+> backlog 会被静默标记为已见。所以大多数情况下加完源直接等 cron 触发即可，
+> 不用手动 seed；只有像 Cursor changelog 这类历史很长的源才偶尔需要 seed。
 
 ## 调整推送策略
 

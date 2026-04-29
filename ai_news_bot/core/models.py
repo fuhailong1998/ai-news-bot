@@ -54,6 +54,7 @@ class SourceConfig(BaseModel):
 class StorageCfg(BaseModel):
     db_path: str = "storage/seen.db"
     retention_days: int = 30
+    first_run_window_days: int = 7  # for newly added sources, only push items newer than this
 
 
 class PushCfg(BaseModel):

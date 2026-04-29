@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import httpx
 from loguru import logger
@@ -61,6 +61,36 @@ async def run(seed_only: bool = False) -> None:
             dedup.cleanup(settings.storage.retention_days)
             dedup.close()
             return
+
+        # 折中方案：新加的数据源只推近 N 天内发布的条目，其余历史 backlog 静默入库
+        # 避免新加 RSS 时把整个历史一次性轰炸到群里。
+        known = dedup.known_sources()
+        window_days = settings.storage.first_run_window_days
+        cutoff = datetime.utcnow() - timedelta(days=window_days)
+
+        def _naive(d: datetime | None) -> datetime | None:
+            if d is None:
+                return None
+            return d.replace(tzinfo=None) if d.tzinfo else d
+
+        suppressed_count = 0
+        kept: list[NewsItem] = []
+        for it in new_items:
+            if it.source in known:
+                kept.append(it)
+                continue
+            pub = _naive(it.published_at)
+            if pub is None or pub >= cutoff:
+                kept.append(it)
+            else:
+                dedup.mark_seen(it, pushed=False)
+                suppressed_count += 1
+        if suppressed_count:
+            logger.info(
+                f"First-run window: suppressed {suppressed_count} backlog items "
+                f"older than {window_days}d from newly added sources"
+            )
+        new_items = kept
 
         # 排序：有日期的按日期倒序，其余追加（统一去掉 tzinfo 避免比较错误）
         def _sort_key(it):

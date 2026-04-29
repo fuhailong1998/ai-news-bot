@@ -50,6 +50,10 @@ class Dedup:
         ))
         self.conn.commit()
 
+    def known_sources(self) -> set[str]:
+        """Return set of source names that already have at least one row in the DB."""
+        return {row[0] for row in self.conn.execute("SELECT DISTINCT source FROM seen")}
+
     def cleanup(self, retention_days: int) -> int:
         cutoff = (datetime.utcnow() - timedelta(days=retention_days)).isoformat()
         cur = self.conn.execute("DELETE FROM seen WHERE first_seen_at < ?", (cutoff,))

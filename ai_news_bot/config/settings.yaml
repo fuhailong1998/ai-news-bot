@@ -1,6 +1,7 @@
 storage:
   db_path: storage/seen.db
   retention_days: 30
+  first_run_window_days: 7   # 新加数据源时只推近 N 天内发布的条目，避免历史 backlog 一次性轰炸
 
 push:
   per_run_limit: 10        # 每轮最多推送几条，避免刷屏

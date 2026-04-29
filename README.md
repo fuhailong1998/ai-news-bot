@@ -195,11 +195,12 @@ Edit `ai_news_bot/config/sources.yaml`. See [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 > ⚠️ HTML sources default to `enabled: false`; enable them after writing the parser.
 
-> ⚠️ **After adding a new source**, run the workflow once in **`seed`** mode first
-> (Actions → AI News Bot → Run workflow → mode: `seed`). This silently records
-> the source's existing backlog into the dedup DB without pushing — otherwise
-> the next `once` run will broadcast the entire RSS history (e.g. all past
-> releases) as one giant burst.
+> 💡 **First-run window auto-protection**: when a *brand-new* source is polled
+> for the first time, only items published within the last
+> `storage.first_run_window_days` (default **7 days**) are pushed; older backlog
+> is silently marked as seen. So in most cases you can just add a source and
+> forget — only super-old feeds (Cursor changelog, etc.) might still need a
+> manual `seed` run.
 
 ## Tuning Push Strategy
 

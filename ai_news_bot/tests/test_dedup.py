@@ -39,3 +39,11 @@ def test_cleanup(dedup):
     it = _item()
     dedup.mark_seen(it, pushed=True)
     assert dedup.cleanup(retention_days=0) >= 1
+
+
+def test_known_sources(dedup):
+    assert dedup.known_sources() == set()
+    dedup.mark_seen(_item(url="https://x.com/a"), pushed=True)
+    dedup.mark_seen(NewsItem(source="Other", title="T", url="https://y.com/b",
+                             published_at=datetime(2026, 1, 1), summary="s"))
+    assert dedup.known_sources() == {"OpenAI", "Other"}
