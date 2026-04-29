@@ -1,0 +1,38 @@
+name: AI News Daily Digest
+
+on:
+  schedule:
+    # 每天 北京时间 21:00 (= UTC 13:00) 推送一张「今日总结」卡片
+    - cron: "0 13 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai_news_bot
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ai_news_bot/pyproject.toml
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Run digest
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          FEISHU_WEBHOOKS: ${{ secrets.FEISHU_WEBHOOKS }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
+          TELEGRAM_TARGETS: ${{ secrets.TELEGRAM_TARGETS }}
+        run: python main.py --digest
