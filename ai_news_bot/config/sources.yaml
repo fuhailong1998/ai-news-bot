@@ -22,6 +22,8 @@ sources:
   - {name: "Hugging Face",           type: rss,  url: "https://huggingface.co/blog/feed.xml", priority: high}
   - {name: "GitHub Changelog",       type: rss,  url: "https://github.blog/changelog/feed/", priority: medium}
   - {name: "Cursor Changelog",       type: html, url: "https://www.cursor.com/changelog", parser: cursor, priority: medium}
+  - {name: "xAI HF Models",          type: huggingface_org, repo: "xai-org", priority: high}
+  - {name: "xAI SDK Releases",       type: rss,  url: "https://github.com/xai-org/xai-sdk-python/releases.atom", priority: medium}
 
   # ===== 国内 =====
   # ⚠️ 大部分国内厂商官网是 SPA（前端渲染），无 headless browser 抓不到
