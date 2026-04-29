@@ -92,12 +92,44 @@ async def run(seed_only: bool = False) -> None:
             )
         new_items = kept
 
-        # 排序：有日期的按日期倒序，其余追加（统一去掉 tzinfo 避免比较错误）
-        def _sort_key(it):
-            d = it.published_at
-            if d is None:
-                return datetime.min
-            return d.replace(tzinfo=None) if d.tzinfo else d
+        def _sort_key(it: NewsItem):
+            d = _naive(it.published_at)
+            return d or datetime.min
+
+        # HF 模型批量发布合并：同一组织在一次运行中放出多个模型变体
+        # （例如 1.25bit / 2bit / GGUF / FP8 等量化版本），合并成一张卡片避免刷屏。
+        # 触发阈值：同源 ≥ 3 条
+        hf_groups: dict[str, list[NewsItem]] = {}
+        for it in new_items:
+            if "huggingface.co/" in it.url:
+                hf_groups.setdefault(it.source, []).append(it)
+
+        merged_originals: list[NewsItem] = []
+        kept_after_collapse: list[NewsItem] = []
+        for it in new_items:
+            grp = hf_groups.get(it.source, [])
+            if len(grp) >= 3 and "huggingface.co/" in it.url:
+                continue
+            kept_after_collapse.append(it)
+
+        for source, grp in hf_groups.items():
+            if len(grp) < 3:
+                continue
+            grp.sort(key=_sort_key, reverse=True)
+            org = source.replace(" HF Models", "").strip()
+            names = [g.url.rsplit("/", 1)[-1] for g in grp]
+            kept_after_collapse.append(NewsItem(
+                source=source,
+                title=f"🤗 {org} 一次性发布 {len(grp)} 个模型",
+                url=f"https://huggingface.co/{grp[0].url.split('huggingface.co/')[-1].split('/')[0]}",
+                published_at=grp[0].published_at,
+                summary=f"{org} 在 HF 上传了 {len(grp)} 个模型（量化/格式变体）：" + "、".join(names[:5]) + ("..." if len(names) > 5 else ""),
+                content="\n".join(f"• {n}" for n in names),
+            ))
+            merged_originals.extend(grp)
+            logger.info(f"Collapsed {len(grp)} HF uploads from {source} into one card")
+
+        new_items = kept_after_collapse
         new_items.sort(key=_sort_key, reverse=True)
 
         # LLM 摘要
@@ -115,8 +147,10 @@ async def run(seed_only: bool = False) -> None:
         logger.info(f"Pushed {sent}/{len(new_items)} items "
                     f"(feishu={len(feishu.targets)}, tg={len(telegram.targets)})")
 
-        # 入库
+        # 入库（包括被合并掉的原始 HF 条目，避免下次再被判为 new）
         for it in new_items:
+            dedup.mark_seen(it, pushed=True)
+        for it in merged_originals:
             dedup.mark_seen(it, pushed=True)
 
         dedup.cleanup(settings.storage.retention_days)
