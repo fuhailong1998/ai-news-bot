@@ -195,6 +195,11 @@ sudo systemctl disable --now ai-news-bot.timer    # 停止
 
 > ⚠️ HTML 源默认 `enabled: false`，需要你写完 parser 再开启。
 
+> ⚠️ **添加新数据源后**，先在 Actions 里手动跑一次 **`seed`** 模式
+> （Actions → AI News Bot → Run workflow → mode 选 `seed`）。
+> 这一步只把该源的历史条目静默入库，不会推送；否则下一次 `once` 跑会把
+> 整个 RSS 历史（例如所有历史 release）当作"新条目"一次性轰炸到群里。
+
 ## 调整推送策略
 
 编辑 `ai_news_bot/config/settings.yaml`：
