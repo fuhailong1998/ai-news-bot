@@ -6,7 +6,7 @@
 完全运行在 **GitHub Actions** 上，无需自己部署服务器。
 
 ## 特性
-- ✅ 27+ 个数据源（OpenAI / Anthropic / Google / Meta / DeepSeek / Qwen / Kimi / GLM / MiniMax …）
+- ✅ **24 个数据源**（OpenAI / Anthropic / Google / Meta / xAI / DeepSeek / Qwen / Kimi / GLM / MiniMax …）
 - ✅ 5 种抓取方式：RSS / HTML parser / GitHub Releases / GitHub Tags / HuggingFace org
 - ✅ SQLite 去重，commit 回仓库实现持久化
 - ✅ **多通道广播**：任意多个飞书群 + 任意多个 Telegram 群 / 频道并发推送

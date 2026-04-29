@@ -6,7 +6,7 @@ Automatically fetch updates from major AI companies, **summarize them in Chinese
 Runs entirely on **GitHub Actions** — no server required.
 
 ## Features
-- ✅ **23+ data sources** (OpenAI / Anthropic / Google / Meta / DeepSeek / Qwen / Kimi / GLM / MiniMax …)
+- ✅ **24 data sources** (OpenAI / Anthropic / Google / Meta / xAI / DeepSeek / Qwen / Kimi / GLM / MiniMax …)
 - ✅ Multiple fetcher types: RSS / HTML parser / GitHub Releases / GitHub Tags / HuggingFace org
 - ✅ SQLite-based deduplication, persisted by committing back to the repo
 - ✅ **Multi-channel broadcast**: any number of Feishu groups + any number of Telegram chats / channels in parallel
