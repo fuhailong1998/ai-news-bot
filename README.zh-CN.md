@@ -195,13 +195,30 @@ sudo systemctl disable --now ai-news-bot.timer    # 停止
 
 > ⚠️ HTML 源默认 `enabled: false`，需要你写完 parser 再开启。
 
-> 💡 **全局新鲜度窗口**：任何条目只要带有 `published_at` 且老于
-> `storage.first_run_window_days` 天（默认 **7 天**），都会被静默丢弃。
-> 防御场景：
-> 1. 新增数据源时 RSS 历史 backlog 一次性轰炸
-> 2. HF API 偶发性把几天前上传的模型才排到前面（私有转公开 / 排序抖动）
->
-> 没有 `published_at` 的条目（部分 HTML parser 抓不到日期）仍会推送。
+## 去重机制
+
+条目按 `uid = sha256("{source}|{url}")[:16]` 去重，状态持久化到 SQLite
+（`storage/seen.db`）。bot 采用 **三层抑制** 策略保持频道清净：
+
+**第一层 — 单源 `createdAt` 游标（仅 HuggingFace）**
+- 对每个 HF 组织源，用 `source_cursor` 表记录历史上见过的最大 `createdAt`。
+- 每轮跑时，HF 条目若 `createdAt <= 游标` → **静默丢弃**（连 `seen` 表都不
+  写）。游标随后单调推进到本轮见过的最大 `createdAt`。
+- 这彻底解决了 HF 的"延迟暴露"问题——同一批模型在
+  `?sort=createdAt&limit=10` 里跨多天反复出现（私有转公开 / 排序抖动 /
+  CDN 缓存等）。
+
+**第二层 — 全局新鲜度窗口**
+- 任何条目只要带有 `published_at` 且老于
+  `storage.first_run_window_days` 天（默认 **7 天**），都会被静默丢弃。
+- 防御场景：新增数据源 RSS 历史 backlog 一次性轰炸；非 HF 源回吐很老的
+  条目；长时间宕机后恢复。
+- 没有 `published_at` 的条目（部分 HTML parser 抓不到日期）仍会推送。
+
+**第三层 — 仅看 `uid` 的 `is_new` 检查**
+- 经过前两层后，标准去重生效：同 `uid` → 跳过。
+- 检查只看 `uid`，**不看内容哈希**，所以会变的字段（HF 下载数 / status
+  故障描述等）不会触发重复推送。
 
 ## 调整推送策略
 

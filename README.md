@@ -195,15 +195,35 @@ Edit `ai_news_bot/config/sources.yaml`. See [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 > ⚠️ HTML sources default to `enabled: false`; enable them after writing the parser.
 
-> 💡 **Global freshness window**: any item with `published_at` older than
-> `storage.first_run_window_days` (default **7 days**) is silently dropped.
-> This protects against:
-> 1. Adding a brand-new source whose RSS contains years of history
-> 2. HF API occasionally surfacing models days after they were uploaded
->    (e.g. private→public flips, ranking instability)
->
-> Items with no `published_at` (some HTML parsers can't extract dates) are
-> still pushed.
+## Deduplication
+
+Items are deduplicated by `uid = sha256("{source}|{url}")[:16]`, persisted in
+SQLite (`storage/seen.db`). The bot uses a **two-layer suppression** strategy
+to keep the channel quiet:
+
+**Layer 1 — Per-source `createdAt` cursor (HuggingFace only)**
+- For each HF org source, the bot tracks the maximum `createdAt` it has ever
+  observed in the `source_cursor` table.
+- Each run, any HF item with `createdAt <= cursor` is **silently dropped**
+  (not even written to `seen`). The cursor then advances monotonically to
+  the largest `createdAt` seen this round.
+- This neutralises HF's "delayed surfacing" — same model batch reappearing in
+  `?sort=createdAt&limit=10` over multiple days due to private→public flips
+  or ranking instability.
+
+**Layer 2 — Global freshness window**
+- Any item whose `published_at` is older than
+  `storage.first_run_window_days` (default **7 days**) is silently dropped.
+- Catches: brand-new sources with years of RSS backlog; non-HF sources that
+  re-emit very old items; recovery after long downtime.
+- Items with no `published_at` (some HTML parsers can't extract dates) are
+  still pushed.
+
+**Layer 3 — UID-only `is_new` check**
+- After the above, the standard dedup check kicks in: same `uid` → skip.
+- The check looks at `uid` only, *not* content hash, so mutating fields
+  (e.g. HF download counts, status incident descriptions) never re-trigger
+  a push.
 
 ## Tuning Push Strategy
 
