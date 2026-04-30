@@ -195,12 +195,15 @@ Edit `ai_news_bot/config/sources.yaml`. See [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 > ⚠️ HTML sources default to `enabled: false`; enable them after writing the parser.
 
-> 💡 **First-run window auto-protection**: when a *brand-new* source is polled
-> for the first time, only items published within the last
-> `storage.first_run_window_days` (default **7 days**) are pushed; older backlog
-> is silently marked as seen. So in most cases you can just add a source and
-> forget — only super-old feeds (Cursor changelog, etc.) might still need a
-> manual `seed` run.
+> 💡 **Global freshness window**: any item with `published_at` older than
+> `storage.first_run_window_days` (default **7 days**) is silently dropped.
+> This protects against:
+> 1. Adding a brand-new source whose RSS contains years of history
+> 2. HF API occasionally surfacing models days after they were uploaded
+>    (e.g. private→public flips, ranking instability)
+>
+> Items with no `published_at` (some HTML parsers can't extract dates) are
+> still pushed.
 
 ## Tuning Push Strategy
 

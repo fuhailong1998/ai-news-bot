@@ -62,9 +62,9 @@ async def run(seed_only: bool = False) -> None:
             dedup.close()
             return
 
-        # 折中方案：新加的数据源只推近 N 天内发布的条目，其余历史 backlog 静默入库
-        # 避免新加 RSS 时把整个历史一次性轰炸到群里。
-        known = dedup.known_sources()
+        # 全局过期窗口：所有源的所有新条目，如果有 published_at 且老于 N 天，
+        # 静默 mark_seen 不推送。避免「老模型今天才被 HF API 排出来」这种延迟暴露
+        # 的内容打扰用户。没有 published_at 的条目仍会推（许多 HTML parser 拿不到日期）。
         window_days = settings.storage.first_run_window_days
         cutoff = datetime.utcnow() - timedelta(days=window_days)
 
@@ -76,9 +76,6 @@ async def run(seed_only: bool = False) -> None:
         suppressed_count = 0
         kept: list[NewsItem] = []
         for it in new_items:
-            if it.source in known:
-                kept.append(it)
-                continue
             pub = _naive(it.published_at)
             if pub is None or pub >= cutoff:
                 kept.append(it)
@@ -87,8 +84,8 @@ async def run(seed_only: bool = False) -> None:
                 suppressed_count += 1
         if suppressed_count:
             logger.info(
-                f"First-run window: suppressed {suppressed_count} backlog items "
-                f"older than {window_days}d from newly added sources"
+                f"Freshness window: suppressed {suppressed_count} items "
+                f"with published_at older than {window_days}d"
             )
         new_items = kept
 

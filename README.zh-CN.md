@@ -195,10 +195,13 @@ sudo systemctl disable --now ai-news-bot.timer    # 停止
 
 > ⚠️ HTML 源默认 `enabled: false`，需要你写完 parser 再开启。
 
-> 💡 **首次拉取自动保护**：新增的数据源第一次被轮询时，**只推送近
-> `storage.first_run_window_days` 天（默认 7 天）内发布的条目**，更早的历史
-> backlog 会被静默标记为已见。所以大多数情况下加完源直接等 cron 触发即可，
-> 不用手动 seed；只有像 Cursor changelog 这类历史很长的源才偶尔需要 seed。
+> 💡 **全局新鲜度窗口**：任何条目只要带有 `published_at` 且老于
+> `storage.first_run_window_days` 天（默认 **7 天**），都会被静默丢弃。
+> 防御场景：
+> 1. 新增数据源时 RSS 历史 backlog 一次性轰炸
+> 2. HF API 偶发性把几天前上传的模型才排到前面（私有转公开 / 排序抖动）
+>
+> 没有 `published_at` 的条目（部分 HTML parser 抓不到日期）仍会推送。
 
 ## 调整推送策略
 
