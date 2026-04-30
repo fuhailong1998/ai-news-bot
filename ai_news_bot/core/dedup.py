@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from loguru import logger
 
 from .models import NewsItem
+
+
+def _utcnow_naive() -> datetime:
+    """Return current UTC time as a naive datetime (replaces deprecated utcnow)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Dedup:
@@ -43,7 +48,7 @@ class Dedup:
         return row is None
 
     def mark_seen(self, item: NewsItem, pushed: bool = False) -> None:
-        now = datetime.utcnow().isoformat()
+        now = _utcnow_naive().isoformat()
         self.conn.execute("""
             INSERT INTO seen(uid, source, url, title, content_hash, first_seen_at, pushed_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -78,7 +83,7 @@ class Dedup:
         if dt.tzinfo is not None:
             dt = dt.replace(tzinfo=None)
         iso = dt.isoformat()
-        now = datetime.utcnow().isoformat()
+        now = _utcnow_naive().isoformat()
         self.conn.execute("""
             INSERT INTO source_cursor(source, max_created_at, updated_at)
             VALUES (?, ?, ?)
@@ -89,7 +94,7 @@ class Dedup:
         self.conn.commit()
 
     def cleanup(self, retention_days: int) -> int:
-        cutoff = (datetime.utcnow() - timedelta(days=retention_days)).isoformat()
+        cutoff = (_utcnow_naive() - timedelta(days=retention_days)).isoformat()
         cur = self.conn.execute("DELETE FROM seen WHERE first_seen_at < ?", (cutoff,))
         self.conn.commit()
         if cur.rowcount:

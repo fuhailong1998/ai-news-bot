@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from loguru import logger
@@ -13,6 +13,10 @@ from loguru import logger
 from .models import NewsItem, load_settings
 from .notifier.feishu import FeishuNotifier
 from .notifier.telegram import TelegramNotifier
+
+
+def _utcnow_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 _QUIET_QUOTES = [
@@ -24,7 +28,7 @@ _QUIET_QUOTES = [
 
 
 def _today_window_utc(window_hours: int = 24) -> tuple[str, str]:
-    end = datetime.utcnow()
+    end = _utcnow_naive()
     start = end - timedelta(hours=window_hours)
     return start.isoformat(), end.isoformat()
 
@@ -106,7 +110,7 @@ async def run_digest(window_hours: int = 24) -> None:
     telegram = TelegramNotifier(settings)
 
     rows = _load_today_items(settings.storage.db_path, window_hours)
-    date_label = (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d")  # Beijing
+    date_label = (_utcnow_naive() + timedelta(hours=8)).strftime("%Y-%m-%d")  # Beijing
     feishu_card, tg_text = _build_card_payload(rows, date_label)
 
     logger.info(f"[digest] {len(rows)} items in last {window_hours}h, broadcasting...")

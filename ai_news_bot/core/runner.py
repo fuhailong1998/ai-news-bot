@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from loguru import logger
@@ -13,6 +13,10 @@ from .models import NewsItem, Settings, SourceConfig, load_settings, load_source
 from .notifier.feishu import FeishuNotifier
 from .notifier.telegram import TelegramNotifier
 from .summarizer import Summarizer
+
+
+def _utcnow_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 async def _noop() -> int:
@@ -96,7 +100,7 @@ async def run(seed_only: bool = False) -> None:
         # 静默 mark_seen 不推送。避免「老模型今天才被 HF API 排出来」这种延迟暴露
         # 的内容打扰用户。没有 published_at 的条目仍会推（许多 HTML parser 拿不到日期）。
         window_days = settings.storage.first_run_window_days
-        cutoff = datetime.utcnow() - timedelta(days=window_days)
+        cutoff = _utcnow_naive() - timedelta(days=window_days)
 
         suppressed_count = 0
         kept: list[NewsItem] = []
