@@ -196,7 +196,7 @@ Edit `ai_news_bot/config/sources.yaml`. See [CONTRIBUTING.md](./CONTRIBUTING.md)
 > ⚠️ HTML sources default to `enabled: false`; enable them after writing the parser.
 
 > 💡 **Global freshness window**: any item with `published_at` older than
-> `storage.first_run_window_days` (default **2 days**) is silently dropped.
+> `storage.first_run_window_days` (default **7 days**) is silently dropped.
 > This protects against:
 > 1. Adding a brand-new source whose RSS contains years of history
 > 2. HF API occasionally surfacing models days after they were uploaded
