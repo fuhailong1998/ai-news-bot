@@ -54,7 +54,7 @@ class SourceConfig(BaseModel):
 class StorageCfg(BaseModel):
     db_path: str = "storage/seen.db"
     retention_days: int = 30
-    first_run_window_days: int = 7  # global freshness window: items with published_at older than this are silently dropped
+    first_run_window_days: int = 2  # global freshness window: items with published_at older than this are silently dropped
 
 
 class PushCfg(BaseModel):

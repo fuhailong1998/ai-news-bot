@@ -196,7 +196,7 @@ sudo systemctl disable --now ai-news-bot.timer    # 停止
 > ⚠️ HTML 源默认 `enabled: false`，需要你写完 parser 再开启。
 
 > 💡 **全局新鲜度窗口**：任何条目只要带有 `published_at` 且老于
-> `storage.first_run_window_days` 天（默认 **7 天**），都会被静默丢弃。
+> `storage.first_run_window_days` 天（默认 **2 天**），都会被静默丢弃。
 > 防御场景：
 > 1. 新增数据源时 RSS 历史 backlog 一次性轰炸
 > 2. HF API 偶发性把几天前上传的模型才排到前面（私有转公开 / 排序抖动）
