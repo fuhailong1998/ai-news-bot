@@ -47,3 +47,32 @@ def test_known_sources(dedup):
     dedup.mark_seen(NewsItem(source="Other", title="T", url="https://y.com/b",
                              published_at=datetime(2026, 1, 1), summary="s"))
     assert dedup.known_sources() == {"OpenAI", "Other"}
+
+
+def test_cursor_initial_none(dedup):
+    assert dedup.get_cursor("Qwen HF Models") is None
+
+
+def test_cursor_set_and_get(dedup):
+    dedup.update_cursor("Qwen HF Models", datetime(2026, 4, 28, 10, 0, 0))
+    assert dedup.get_cursor("Qwen HF Models") == datetime(2026, 4, 28, 10, 0, 0)
+
+
+def test_cursor_monotonic(dedup):
+    """Cursor must never go backwards even if a smaller value is supplied."""
+    dedup.update_cursor("Qwen HF Models", datetime(2026, 4, 28, 10, 0, 0))
+    dedup.update_cursor("Qwen HF Models", datetime(2026, 4, 27, 10, 0, 0))
+    assert dedup.get_cursor("Qwen HF Models") == datetime(2026, 4, 28, 10, 0, 0)
+
+
+def test_cursor_advances_on_larger_value(dedup):
+    dedup.update_cursor("Qwen HF Models", datetime(2026, 4, 28, 10, 0, 0))
+    dedup.update_cursor("Qwen HF Models", datetime(2026, 4, 29, 10, 0, 0))
+    assert dedup.get_cursor("Qwen HF Models") == datetime(2026, 4, 29, 10, 0, 0)
+
+
+def test_cursor_per_source_independent(dedup):
+    dedup.update_cursor("Qwen HF Models", datetime(2026, 4, 28))
+    dedup.update_cursor("xAI HF Models", datetime(2026, 4, 25))
+    assert dedup.get_cursor("Qwen HF Models") == datetime(2026, 4, 28)
+    assert dedup.get_cursor("xAI HF Models") == datetime(2026, 4, 25)

@@ -50,6 +50,34 @@ async def run(seed_only: bool = False) -> None:
         all_items = [it for sub in all_items_lists for it in sub]
         logger.info(f"Total fetched: {len(all_items)} items")
 
+        # HF cursor 过滤：对每个 HF 源，记录历史上见过的最大 createdAt。
+        # 凡是 createdAt <= cursor 的条目静默吞掉（不入库不推送），
+        # 这样可彻底消除 HF API "延迟暴露"导致的旧模型重新出现在 top-N 的噪音。
+        # 同时记录本轮看到的最大 createdAt，跑完之后单调推进 cursor。
+        def _naive(d: datetime | None) -> datetime | None:
+            if d is None:
+                return None
+            return d.replace(tzinfo=None) if d.tzinfo else d
+
+        hf_max_seen: dict[str, datetime] = {}
+        cursor_filtered_count = 0
+        post_cursor_items: list[NewsItem] = []
+        for it in all_items:
+            is_hf = "huggingface.co/" in it.url
+            if is_hf and it.published_at:
+                pub = _naive(it.published_at)
+                cur = hf_max_seen.get(it.source)
+                if cur is None or pub > cur:
+                    hf_max_seen[it.source] = pub
+                cursor = dedup.get_cursor(it.source)
+                if cursor and pub <= cursor:
+                    cursor_filtered_count += 1
+                    continue
+            post_cursor_items.append(it)
+        if cursor_filtered_count:
+            logger.info(f"HF cursor: filtered {cursor_filtered_count} items <= last-seen createdAt")
+        all_items = post_cursor_items
+
         # 去重 → 新条目
         new_items = [it for it in all_items if dedup.is_new(it)]
         logger.info(f"New items: {len(new_items)}")
@@ -57,6 +85,8 @@ async def run(seed_only: bool = False) -> None:
         if seed_only:
             for it in all_items:
                 dedup.mark_seen(it, pushed=False)
+            for source, max_dt in hf_max_seen.items():
+                dedup.update_cursor(source, max_dt)
             logger.info("Seed done, no push.")
             dedup.cleanup(settings.storage.retention_days)
             dedup.close()
@@ -67,11 +97,6 @@ async def run(seed_only: bool = False) -> None:
         # 的内容打扰用户。没有 published_at 的条目仍会推（许多 HTML parser 拿不到日期）。
         window_days = settings.storage.first_run_window_days
         cutoff = datetime.utcnow() - timedelta(days=window_days)
-
-        def _naive(d: datetime | None) -> datetime | None:
-            if d is None:
-                return None
-            return d.replace(tzinfo=None) if d.tzinfo else d
 
         suppressed_count = 0
         kept: list[NewsItem] = []
@@ -149,6 +174,11 @@ async def run(seed_only: bool = False) -> None:
             dedup.mark_seen(it, pushed=True)
         for it in merged_originals:
             dedup.mark_seen(it, pushed=True)
+
+        # HF cursor 推进：本轮见过的最大 createdAt（包括被 cursor/dedup 过滤掉的），
+        # 实现严格单调推进，防止下一轮同 createdAt 旧模型再被 API 排上来。
+        for source, max_dt in hf_max_seen.items():
+            dedup.update_cursor(source, max_dt)
 
         dedup.cleanup(settings.storage.retention_days)
     dedup.close()

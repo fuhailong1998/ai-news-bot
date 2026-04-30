@@ -27,6 +27,13 @@ class Dedup:
             )
         """)
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_source_seen ON seen(source, first_seen_at)")
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS source_cursor (
+                source TEXT PRIMARY KEY,
+                max_created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
         self.conn.commit()
 
     def is_new(self, item: NewsItem) -> bool:
@@ -53,6 +60,33 @@ class Dedup:
     def known_sources(self) -> set[str]:
         """Return set of source names that already have at least one row in the DB."""
         return {row[0] for row in self.conn.execute("SELECT DISTINCT source FROM seen")}
+
+    def get_cursor(self, source: str) -> datetime | None:
+        """Return the largest createdAt previously observed for `source`, or None."""
+        row = self.conn.execute(
+            "SELECT max_created_at FROM source_cursor WHERE source = ?", (source,)
+        ).fetchone()
+        if not row:
+            return None
+        try:
+            return datetime.fromisoformat(row[0])
+        except ValueError:
+            return None
+
+    def update_cursor(self, source: str, dt: datetime) -> None:
+        """Advance cursor for `source` to `dt` if it is greater than the existing value."""
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        iso = dt.isoformat()
+        now = datetime.utcnow().isoformat()
+        self.conn.execute("""
+            INSERT INTO source_cursor(source, max_created_at, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(source) DO UPDATE SET
+                max_created_at = MAX(source_cursor.max_created_at, excluded.max_created_at),
+                updated_at = excluded.updated_at
+        """, (source, iso, now))
+        self.conn.commit()
 
     def cleanup(self, retention_days: int) -> int:
         cutoff = (datetime.utcnow() - timedelta(days=retention_days)).isoformat()
